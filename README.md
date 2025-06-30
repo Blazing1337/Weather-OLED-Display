@@ -1,36 +1,53 @@
-# 🌤️ ESP8266 IR-gesteuertes Wetterdisplay
+# 🌤️ ESP8266 IR-Wetteranzeige mit OLED
 
-Ein Projekt für den ESP8266 (z. B. NodeMCU), das Wetterdaten von OpenWeatherMap abruft und sie auf einem OLED-Display anzeigt. Die Stadt kann per IR-Fernbedienung gewechselt werden, die Uhrzeit wird automatisch per NTP aktualisiert.
+Ein Projekt für den ESP8266 (z. B. NodeMCU), das Wetterdaten von OpenWeatherMap anzeigt. Die Stadt kann per IR-Fernbedienung gewechselt werden. Die Zeit wird per NTP jede Sekunde aktualisiert.
 
 ## 🔧 Funktionen
 
-- Live-Wetterdaten (Temperatur & Zustand)
-- Uhrzeit (aktualisiert jede Sekunde per NTP)
-- Stadtwechsel per Infrarot-Fernbedienung (Tasten 1–4)
-- Wetter-Icons für Sonne, Regen, Wolken
+- Live-Wetterdaten mit Wetterzustand und Temperatur
+- Uhrzeit (per NTP, alle Sekunden aktualisiert)
+- IR-Fernbedienung für Stadtwahl (Taste 1–4)
+- Wetter-Icons (Sonne, Regen, Wolken)
+- OLED 128x64 Display (SSD1306, I2C)
 
-## 🧾 Komponenten
+## 🧰 Benötigte Hardware
 
 - ESP8266 (z. B. NodeMCU)
-- OLED-Display (I2C, 128x64, SSD1306)
 - IR-Empfänger (z. B. VS1838B)
-- IR-Fernbedienung
+- Fernbedienung (NEC-kompatibel)
+- OLED 128x64 (SSD1306, I2C)
 
-## ⬇️ Benötigte Bibliotheken
+## 🔌 Pinbelegung (NodeMCU)
 
-Installiere diese Bibliotheken über den **Arduino Library Manager**:
+| Modul           | ESP8266 Pin |
+|----------------|--------------|
+| OLED SCL       | D1           |
+| OLED SDA       | D2           |
+| IR Signal      | D5           |
+| GND / VCC      | G / 3V3      |
 
-- `ESP8266WiFi`
-- `WiFiClientSecure`
-- `IRremoteESP8266`
-- `ArduinoJson`
-- `U8g2`
-- `time.h` (enthalten im ESP8266 Core)
+## 🧾 Bibliotheken (Arduino IDE)
 
-## 🔑 OpenWeatherMap API
+- ESP8266WiFi (im ESP8266 Board Package enthalten)
+- WiFiClientSecure
+- IRremoteESP8266
+- ArduinoJson
+- U8g2
+- time.h (eingebaut)
 
-Du brauchst einen API-Key von [https://openweathermap.org/](https://openweathermap.org/)  
-Ersetze die Zeile im Code:
+## 📲 IR-Fernbedienung
+
+| Taste | Stadt       |
+|-------|-------------|
+| 1     | China       |
+| 2     | Luxemburg   |
+| 3     | Antarktis   |
+| 4     | USA         |
+
+## 🌐 OpenWeatherMap API
+
+- Registriere dich bei https://openweathermap.org
+- Ersetze `apiKey` im Code durch deinen Schlüssel
 
 ```cpp
-const String apiKey = "DEIN_API_KEY_HIER";
+const String apiKey = "DEIN_API_KEY";
