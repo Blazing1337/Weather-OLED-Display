@@ -20,7 +20,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define BUTTON_PIN D5
 
 // ---------- API ----------
-const String apiKey = "6124093a3bb8f8c9ea420496f4e34c12";
+const String apiKey = "YOUR API KEY";
 
 // ---------- Städte ----------
 struct Stadt {
