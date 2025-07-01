@@ -1,53 +1,58 @@
-# 🌤️ ESP8266 IR-Wetteranzeige mit OLED
+# 🌍 Arduino Wetterstation mit OLED, Weltzeit & Wetteranimation
 
-Ein Projekt für den ESP8266 (z. B. NodeMCU), das Wetterdaten von OpenWeatherMap anzeigt. Die Stadt kann per IR-Fernbedienung gewechselt werden. Die Zeit wird per NTP jede Sekunde aktualisiert.
+Dieses Projekt zeigt Temperatur, Wetterzustand und lokale Uhrzeit für vier verschiedene Städte auf einem OLED-Display an. Mit einem Knopf kannst du zwischen den Städten umschalten. Die Wetterdaten werden live von OpenWeatherMap geladen, und die Zeit wird über NTP synchronisiert.
 
-## 🔧 Funktionen
+---
 
-- Live-Wetterdaten mit Wetterzustand und Temperatur
-- Uhrzeit (per NTP, alle Sekunden aktualisiert)
-- IR-Fernbedienung für Stadtwahl (Taste 1–4)
-- Wetter-Icons (Sonne, Regen, Wolken)
-- OLED 128x64 Display (SSD1306, I2C)
+## 🔧 Features
 
-## 🧰 Benötigte Hardware
+- 📡 Live-Wetterdaten von OpenWeatherMap
+- 🕒 Lokale Zeit für jede Stadt (über NTP & GMT Offset)
+- 🌦️ Anzeige von Temperatur & Wetterbeschreibung
+- 🖼️ Einfache Wetteranimationen (Sonne, Wolken, Regen)
+- 🧭 Wechsel zwischen vier Städten per Knopfdruck
+- 💾 Kompatibel mit ESP8266 (z. B. NodeMCU, Wemos D1 mini)
 
-- ESP8266 (z. B. NodeMCU)
-- IR-Empfänger (z. B. VS1838B)
-- Fernbedienung (NEC-kompatibel)
-- OLED 128x64 (SSD1306, I2C)
+---
 
-## 🔌 Pinbelegung (NodeMCU)
+## ⚙️ Hardware
 
-| Modul           | ESP8266 Pin |
-|----------------|--------------|
-| OLED SCL       | D1           |
-| OLED SDA       | D2           |
-| IR Signal      | D5           |
-| GND / VCC      | G / 3V3      |
+- ESP8266 Board (NodeMCU oder Wemos D1 Mini)
+- 0.96" I2C OLED Display (SSD1306, 128x64)
+- Taster zwischen D5 und GND
+- USB-Kabel & WLAN-Verbindung
 
-## 🧾 Bibliotheken (Arduino IDE)
+---
 
-- ESP8266WiFi (im ESP8266 Board Package enthalten)
-- WiFiClientSecure
-- IRremoteESP8266
-- ArduinoJson
-- U8g2
-- time.h (eingebaut)
+## 🔩 Schaltplan
 
-## 📲 IR-Fernbedienung
+| Komponente     | ESP8266 Pin |
+|----------------|-------------|
+| OLED SDA       | D2          |
+| OLED SCL       | D1          |
+| Taster         | D5 ↔ GND     |
 
-| Taste | Stadt       |
-|-------|-------------|
-| 1     | China       |
-| 2     | Luxemburg   |
-| 3     | Antarktis   |
-| 4     | USA         |
+OLED-Adresse ist `0x3C` (Standard für SSD1306 I2C).
 
-## 🌐 OpenWeatherMap API
+---
 
-- Registriere dich bei https://openweathermap.org
-- Ersetze `apiKey` im Code durch deinen Schlüssel
+## 🧰 Benötigte Libraries
+
+Installiere diese Bibliotheken über den Bibliotheksmanager in der Arduino IDE:
+
+- `ESP8266WiFi`
+- `ESP8266HTTPClient`
+- `ArduinoJson`
+- `Adafruit GFX`
+- `Adafruit SSD1306`
+
+---
+
+## 🌐 Wetter-API (OpenWeatherMap)
+
+1. Erstelle einen kostenlosen Account auf https://openweathermap.org/
+2. Hole dir deinen API-Schlüssel (API Key)
+3. Trage ihn im Code ein:
 
 ```cpp
-const String apiKey = "DEIN_API_KEY";
+const String apiKey = "HIER_DEIN_API_KEY";
