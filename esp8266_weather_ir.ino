@@ -7,8 +7,8 @@
 #include <time.h>
 
 // ---------- WLAN ----------
-const char* ssid = "Jason";
-const char* password = "Naruto1337";
+const char* ssid = "YOUR SSID";
+const char* password = "YOUR SSID PASSWORD";
 
 // ---------- Display ----------
 #define SCREEN_WIDTH 128
