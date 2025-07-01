@@ -1,189 +1,165 @@
 #include <ESP8266WiFi.h>
-#include <WiFiClientSecure.h>
-#include <IRremoteESP8266.h>
-#include <IRrecv.h>
-#include <IRutils.h>
+#include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
-#include <U8g2lib.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <time.h>
-#include <math.h>  // Für cos/sin bei Sonne
 
-// WLAN-Zugang
-const char* ssid = "Your ssid";
-const char* password = "Your ssid password";
+// ---------- WLAN ----------
+const char* ssid = "Jason";
+const char* password = "Naruto1337";
 
-// OpenWeatherMap API
-const char* host = "api.openweathermap.org";
+// ---------- Display ----------
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+// ---------- Button ----------
+#define BUTTON_PIN D5
+
+// ---------- API ----------
 const String apiKey = "6124093a3bb8f8c9ea420496f4e34c12";
 
-// Städte & Zeitzonen
+// ---------- Städte ----------
 struct Stadt {
   String name;
-  String id;
-  int gmtOffset;  // in Sekunden
+  float lat;
+  float lon;
+  int gmtOffset; // in Sekunden
 };
 
 Stadt stadtListe[] = {
-  {"China", "1816670", 8 * 3600},
-  {"Luxemburg", "2960316", 2 * 3600},
-  {"Antarktis", "6255152", 0},
-  {"USA", "5128581", -4 * 3600}
+  {"Luxemburg", 49.6117, 6.1319, 2 * 3600},
+  {"New York", 40.7128, -74.0060, -4 * 3600},
+  {"Peking", 39.9042, 116.4074, 8 * 3600},
+  {"Antarktis", -75.2500, -0.0714, 0}
 };
 
 int aktuelleStadt = 0;
+unsigned long letzteAktualisierung = 0;
+String wetter = "";
+float temperatur = 0;
 
-// IR
-const uint16_t irPin = D5;
-IRrecv irrecv(irPin);
-decode_results results;
-
-// OLED Display
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
-
-// Wetterdaten
-String weatherMain = "";
-float temperature = 0.0;
-
-// Zeitsteuerung
-unsigned long lastUpdate = 0;
-const unsigned long updateInterval = 1000;
-
+// ---------- Setup ----------
 void setup() {
   Serial.begin(115200);
+  Wire.begin(D2, D1);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("OLED Fehler");
+    while (true);
+  }
+
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("Verbinde WLAN...");
+  display.display();
+
   WiFi.begin(ssid, password);
-  u8g2.begin();
-  irrecv.enableIRIn();
-
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB08_tr);
-  u8g2.drawStr(0, 20, "Verbinde WLAN...");
-  u8g2.sendBuffer();
-
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
 
-  configTime(stadtListe[aktuelleStadt].gmtOffset, 0, "pool.ntp.org", "time.nist.gov");
-
-  u8g2.clearBuffer();
-  u8g2.drawStr(0, 20, "WLAN verbunden!");
-  u8g2.sendBuffer();
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("WLAN verbunden!");
+  display.display();
   delay(1000);
 
-  getWeatherData();
-  drawDisplay();
+  configTime(stadtListe[aktuelleStadt].gmtOffset, 0, "pool.ntp.org");
+  aktualisiereWetter();
 }
 
+// ---------- Loop ----------
 void loop() {
-  // IR Stadtwahl
-  if (irrecv.decode(&results)) {
-    uint32_t code = results.value;
-    int neueStadt = aktuelleStadt;
+  static unsigned long letzteSekunde = 0;
 
-    if (code == 0xFFA25D) neueStadt = 0;  // Taste 1
-    else if (code == 0xFF629D) neueStadt = 1; // Taste 2
-    else if (code == 0xFFE21D) neueStadt = 2; // Taste 3
-    else if (code == 0xFF22DD) neueStadt = 3; // Taste 4
-
-    if (neueStadt != aktuelleStadt) {
-      aktuelleStadt = neueStadt;
-      configTime(stadtListe[aktuelleStadt].gmtOffset, 0, "pool.ntp.org", "time.nist.gov");
-      getWeatherData();
-      drawDisplay();
-    }
-
-    irrecv.resume();
+  // Zeit anzeigen
+  if (millis() - letzteSekunde >= 1000) {
+    letzteSekunde = millis();
+    zeigeDisplay();
   }
 
-  // Zeit jede Sekunde aktualisieren
-  if (millis() - lastUpdate >= updateInterval) {
-    drawDisplay();
-    lastUpdate = millis();
+  // Taster gedrückt?
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    delay(300); // Entprellen
+    aktuelleStadt = (aktuelleStadt + 1) % (sizeof(stadtListe) / sizeof(Stadt));
+    configTime(stadtListe[aktuelleStadt].gmtOffset, 0, "pool.ntp.org");
+    aktualisiereWetter();
   }
 }
 
-void getWeatherData() {
+// ---------- Wetter holen ----------
+void aktualisiereWetter() {
   WiFiClient client;
-  String cityID = stadtListe[aktuelleStadt].id;
+  HTTPClient http;
 
-  if (!client.connect(host, 80)) {
-    Serial.println("Verbindung fehlgeschlagen");
-    return;
-  }
+  Stadt stadt = stadtListe[aktuelleStadt];
+  String url = "http://api.openweathermap.org/data/2.5/weather?lat=" +
+               String(stadt.lat, 4) + "&lon=" + String(stadt.lon, 4) +
+               "&appid=" + apiKey + "&units=metric";
 
-  String url = "/data/2.5/weather?id=" + cityID + "&appid=" + apiKey + "&units=metric&lang=de";
-  client.print(String("GET ") + url + " HTTP/1.1\r\nHost: " + host + "\r\nConnection: close\r\n\r\n");
-
-  while (client.connected()) {
-    String line = client.readStringUntil('\n');
-    if (line == "\r") break;
-  }
-
-  String payload = client.readString();
-  DynamicJsonDocument doc(1024);
-  deserializeJson(doc, payload);
-
-  weatherMain = doc["weather"][0]["main"].as<String>();
-  temperature = doc["main"]["temp"];
-}
-
-void drawDisplay() {
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB08_tr);
-
-  // Stadtname
-  u8g2.setCursor(0, 12);
-  u8g2.print("Land: ");
-  u8g2.print(stadtListe[aktuelleStadt].name);
-
-  // Uhrzeit
-  u8g2.setCursor(0, 24);
-  u8g2.print("Zeit: ");
-  printLocalTime();
-
-  // Temperatur
-  u8g2.setCursor(0, 36);
-  u8g2.print("Temp: ");
-  u8g2.print(temperature, 1);
-  u8g2.print(" C");
-
-  // Wetterbeschreibung
-  u8g2.setCursor(0, 48);
-  u8g2.print("Zustand: ");
-  u8g2.print(weatherMain);
-
-  // Wetter-Animation
-  if (weatherMain == "Clear") {
-    u8g2.drawCircle(110, 20, 7);  // Sonne
-    for (int i = 0; i < 360; i += 45) {
-      int x1 = 110 + cos(i * DEG_TO_RAD) * 10;
-      int y1 = 20 + sin(i * DEG_TO_RAD) * 10;
-      u8g2.drawLine(110, 20, x1, y1);
+  http.begin(client, url);
+  int code = http.GET();
+  if (code == HTTP_CODE_OK) {
+    String payload = http.getString();
+    DynamicJsonDocument doc(1024);
+    DeserializationError error = deserializeJson(doc, payload);
+    if (!error) {
+      wetter = doc["weather"][0]["main"].as<String>();
+      temperatur = doc["main"]["temp"];
     }
   }
-  else if (weatherMain == "Rain") {
-    u8g2.drawBox(95, 15, 30, 10);  // Wolke
-    for (int i = 0; i < 3; i++)
-      u8g2.drawLine(100 + i * 8, 26, 100 + i * 8, 35);  // Tropfen
-  }
-  else if (weatherMain == "Clouds") {
-    u8g2.drawRBox(95, 18, 28, 12, 4);  // runde Wolke
-    u8g2.drawCircle(100, 18, 6);
-    u8g2.drawCircle(115, 20, 5);
-  }
-
-  u8g2.sendBuffer();
+  http.end();
 }
 
-void printLocalTime() {
+// ---------- Displayanzeige ----------
+void zeigeDisplay() {
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.setTextSize(1);
+  display.print("Ort: ");
+  display.println(stadtListe[aktuelleStadt].name);
+
+  display.print("Temp: ");
+  display.print(temperatur);
+  display.println(" C");
+
+  display.print("Wetter: ");
+  display.println(wetter);
+
+  display.print("Zeit: ");
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    u8g2.print("Fehler");
-    return;
+  if (getLocalTime(&timeinfo)) {
+    char buffer[10];
+    strftime(buffer, sizeof(buffer), "%H:%M:%S", &timeinfo);
+    display.println(buffer);
+  } else {
+    display.println("Fehler");
   }
 
-  char timeStr[10];
-  strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
-  u8g2.print(timeStr);
+  zeichneWetterIcon(wetter);
+  display.display();
+}
+
+// ---------- Einfaches Wetter-Icon ----------
+void zeichneWetterIcon(String zustand) {
+  if (zustand == "Clear") {
+    display.fillCircle(110, 10, 6, WHITE);
+  } else if (zustand == "Clouds") {
+    display.fillRect(104, 5, 20, 10, WHITE);
+  } else if (zustand == "Rain") {
+    for (int i = 0; i < 3; i++) {
+      display.drawLine(105 + i * 5, 20, 105 + i * 5, 25, WHITE);
+    }
+  } else {
+    display.setCursor(100, 10);
+    display.print("?");
+  }
 }
