@@ -8,6 +8,7 @@ Dieses Projekt zeigt Temperatur, Wetterzustand und lokale Uhrzeit für vier vers
 - IR Sonsor
 - IR Fernbedinung
 - QIQIAZI 0,96 Zoll OLED Display I2C Modul
+- 2,4GHz Wifi
 ## 🔧 Features
 
 - 📡 Live-Wetterdaten von OpenWeatherMap
