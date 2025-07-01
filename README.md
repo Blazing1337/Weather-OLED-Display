@@ -3,7 +3,11 @@
 Dieses Projekt zeigt Temperatur, Wetterzustand und lokale Uhrzeit für vier verschiedene Städte auf einem OLED-Display an. Mit einem Knopf kannst du zwischen den Städten umschalten. Die Wetterdaten werden live von OpenWeatherMap geladen, und die Zeit wird über NTP synchronisiert.
 
 ---
-
+## Material
+- ESP8266
+- IR Sonsor
+- IR Fernbedinung
+- QIQIAZI 0,96 Zoll OLED Display I2C Modul
 ## 🔧 Features
 
 - 📡 Live-Wetterdaten von OpenWeatherMap
